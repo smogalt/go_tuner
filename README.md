@@ -4,12 +4,16 @@ simple internet radio client inspired by pyradio (https://github.com/coderholic/
 
 ### keybinds
 q - quit
+
 up arrow - up on the list
+
 down arrow - down on the list
+
 enter - select station
+
 p - pause
 
 ## config
 
 stations go in a csv file (~/.config/go_tuner/stations) no spaces
-* i'll add a default file eventually *
+(*i'll add a default file eventually*)
