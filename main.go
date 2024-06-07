@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"github.com/mattn/go-runewidth"
 	"github.com/nsf/termbox-go"
@@ -82,11 +83,6 @@ func main() {
 				/* select station */
 				case ev.Key == termbox.KeyEnter || ev.Key == termbox.KeySpace:
 					play(&pl)
-					if pl.selected == len(pl.stations)-1 {
-						pl.selected = 0
-					} else {
-						pl.selected++
-					}
 
 				case ev.Ch == '-' || ev.Ch == '_':
 					vol(-1, &pl)
@@ -110,7 +106,7 @@ func tbprint(x, y int, fg, bg termbox.Attribute, msg string) {
 	}
 }
 
-func print_box(p playlist) {
+func print_box() {
 	w, h := termbox.Size()
 	/* horizontal sides */
 	for i := 1; i < w-1; i++ {
@@ -129,9 +125,41 @@ func print_box(p playlist) {
 	termbox.SetCell(w-2, 0, '╮', termbox.ColorWhite, termbox.ColorDefault)
 	termbox.SetCell(w-2, h-1, '╯', termbox.ColorWhite, termbox.ColorDefault)
 	termbox.SetCell(1, h-1, '╰', termbox.ColorWhite, termbox.ColorDefault)
+}
+
+type metadata struct {
+	Data struct {
+		Icy_title string `json:"icy-title"`
+	}
+}
+
+func print_title(p playlist) {
+	out, _ := exec.Command("/bin/sh", "-c", `echo '{"command": ["get_property", "metadata"]}' | socat - /tmp/mpvsocket`).Output()
+	response := metadata{}
+	json.Unmarshal([]byte(string(out)), &response)
+
+	w, h := termbox.Size()
 
 	/* title */
-	tbprint(4, 0, termbox.ColorWhite, termbox.ColorDefault, " go tuner "+"─"+" vol: "+p.volume_human+" ")
+	tbprint(5, 0, termbox.ColorLightGreen|termbox.AttrBold, termbox.ColorDefault, "vol: "+p.volume_human)
+	tbprint(4, 0, termbox.ColorWhite, termbox.ColorDefault, "╴")
+	tbprint(5+len("vol: "+p.volume_human), 0, termbox.ColorWhite, termbox.ColorDefault, "╶")
+
+	tbprint(17, 0, termbox.ColorLightRed|termbox.AttrBold, termbox.ColorDefault, "Now Playing: "+response.Data.Icy_title)
+	tbprint(16, 0, termbox.ColorWhite, termbox.ColorDefault, "╴")
+	tbprint(17+len("Now Playing: "+response.Data.Icy_title), 0, termbox.ColorWhite, termbox.ColorDefault, "╶")
+
+	tbprint(w-21, h-1, termbox.ColorWhite, termbox.ColorDefault, "╴Go Tuner v0.1╶")
+
+	/* fix for corners */
+	termbox.SetCell(1, 0, '╭', termbox.ColorWhite, termbox.ColorDefault)
+	termbox.SetCell(w-2, 0, '╮', termbox.ColorWhite, termbox.ColorDefault)
+	termbox.SetCell(w-2, h-1, '╯', termbox.ColorWhite, termbox.ColorDefault)
+	termbox.SetCell(1, h-1, '╰', termbox.ColorWhite, termbox.ColorDefault)
+
+	/* fix clipping */
+	termbox.SetCell(w-1, 0, ' ', termbox.ColorWhite, termbox.ColorDefault)
+	termbox.SetCell(0, h-1, ' ', termbox.ColorWhite, termbox.ColorDefault)
 }
 
 func print_menu(p playlist) {
@@ -157,29 +185,35 @@ func print_menu(p playlist) {
 			tbprint(x, y, termbox.ColorWhite, termbox.ColorDefault, p.stations[i].name)
 		}
 		if i == p.selected {
-			tbprint(x, y, termbox.ColorCyan, termbox.ColorDefault, p.stations[i].name)
-			tbprint(x-2, y, termbox.ColorLightCyan, termbox.ColorDefault, ">")
+			tbprint(x, y, termbox.ColorCyan|termbox.AttrBold, termbox.ColorDefault, p.stations[i].name)
+			tbprint(x-2, y, termbox.ColorLightCyan|termbox.AttrBold, termbox.ColorDefault, ">")
 		}
 		if i == p.selected && p.selected == p.playing {
-			tbprint(x, y, termbox.ColorCyan, termbox.ColorDefault, p.stations[i].name)
+			tbprint(x, y, termbox.ColorCyan|termbox.AttrBold, termbox.ColorDefault, p.stations[i].name)
 		}
 	}
 }
 
 func print_help() {
-	_, h := termbox.Size()
+	w, h := termbox.Size()
 	tbprint(4, h-3, termbox.ColorDarkGray, termbox.ColorDefault, "k - up | j - down | enter/space - select")
 	tbprint(4, h-2, termbox.ColorDarkGray, termbox.ColorDefault, "m - mute | p - pause | q - quit | -/+ - vol up/down ")
+
+	/* fix clipping */
+	for i := w - 4; i < w; i++ {
+		termbox.SetCell(i, h-2, ' ', termbox.ColorWhite, termbox.ColorDefault)
+		termbox.SetCell(i, h-3, ' ', termbox.ColorWhite, termbox.ColorDefault)
+	}
 }
 
 func refresh_screen(p playlist) {
 	termbox.Clear(termbox.ColorWhite, termbox.ColorDefault)
-	print_box(p)
-	print_menu(p)
 	print_help()
+	print_box()
+	print_menu(p)
+	print_title(p)
 	termbox.Flush()
-	w, h := termbox.Size()
-	termbox.SetCursor(w, h)
+	termbox.HideCursor()
 }
 
 func quit() {
