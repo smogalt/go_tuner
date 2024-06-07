@@ -3,10 +3,18 @@
 simple internet radio client inspired by pyradio (https://github.com/coderholic/pyradio). written in go mostly as a learning project but it is still very usable. 
 
 ### keybinds
+space/enter - select
+
 p - pause
+
+q - quit
+
 m - mute
+
 -/+ - vol up/down
+
 j/down arrow - down
+
 k/up arrow - up
 
 ## config
